@@ -38,3 +38,26 @@ Default is ('TexasRed', 'DAPI', 'FITC', 'Cy3', 'Cy5').
 * ``--mainchannel``, `-m`: Channel with the most features used to find homography. Default is 'TexasRed'.
 * ``--color``, `-col`: Color mode of images. Default is "grayscale".
 
+## Requirements
+
+* opencv-contrib-python is needed for **SIFT**: ``pip install opencv-contrib-python``
+* Numpy: ``pip install numpy``
+* Argparse: ``pip install argparse``
+* Imutils: ``pip install imutils``
+
+## Notes
+
+* Since illumination of images is typically inhomogeneous, illumination correction is advisable before stitching.
+This will also improve keypoint matching.
+
+## References
+
+* [Feature Matching with OpenCV](https://docs.opencv.org/master/dc/dc3/tutorial_py_matcher.html)
+* [Homography Matrix in OpenCV](https://docs.opencv.org/master/d1/de0/tutorial_py_feature_homography.html)
+
+### Other useful links
+
+* [Good overview on image alignment](https://www.learnopencv.com/image-alignment-feature-based-using-opencv-c-python/)
+* [Useful tutorial on perspective warp](https://medium.com/acmvit/how-to-project-an-image-in-perspective-view-of-a-background-image-opencv-python-d101bdf966bc)
+* [Tutorial for panorama stitching](https://www.pyimagesearch.com/2016/01/11/opencv-panorama-stitching/)
+
