@@ -8,7 +8,7 @@ This might be helpful for cell segmentation where truncated cells would be exclu
 ## How it works
 
 <p align="center">
-  <img src="./img/image_stitching_opencv_pipeline.png" alt="OpenCV Stitching pipeline" width="600" height="401">
+    <img src="./img/image_stitching_opencv_pipeline.png" alt="OpenCV Stitching pipeline" width="600" height="401">
 </p>
 
 OpenCV is a library of programming functions for computer vision with a lot of useful implementations for image stitching.
@@ -20,6 +20,12 @@ OpenCV is a library of programming functions for computer vision with a lot of u
 This is done by **warpPerspective**.
 * The calculated homography matrices for each field are changed to that they can be applied to the images in original size.
 * Images are then warped in every channel based on homography matrices.
+
+## Example
+
+TexasRed Stitched (and Corrected)             |  DAPI Stitched (without Correction)
+:-------------------------:|:-------------------------:
+![TexasRed Stitched](./img/TexasRed_stitched.png)  |  ![DAPI Stitched](./img/DAPI_stitched.png)
 
 ## Arguments
 
@@ -48,7 +54,7 @@ Default is ('TexasRed', 'DAPI', 'FITC', 'Cy3', 'Cy5').
 ## Notes
 
 * Since illumination of images is typically inhomogeneous, illumination correction is advisable before stitching.
-This will also improve keypoint matching.
+This will also improve keypoint matching. The stitched DAPI image shows an example without illumination correction.
 
 ## References
 
