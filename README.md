@@ -7,5 +7,5 @@ This might be helpful for cell segmentation where truncated cells would be exclu
 
 ## How it works
 
-<img src="https://ai.github.io/size-limit/logo.svg" align="right"
+<img src="https://https://github.com/marx-alex/if-stitch/blob/master/image_stitching_opencv_pipeline.png" align="center"
      alt="Open CV stitching pipeline" width="401" height="600">
