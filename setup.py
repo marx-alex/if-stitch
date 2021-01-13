@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='if-stitch',
-    version='1.0',
+    version='0.0.1',
     extras_require=dict(tests=['pytest']),
     url='https://github.com/marx-alex/if-stitch',
     license='MIT',

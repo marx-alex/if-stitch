@@ -2,16 +2,19 @@
 
 if-stitch is a Python script for 2D-stitching of images from immunofluorescence microscopy.
 Typically, many images are taken from 96- or 384-well microplates. One well can consist of a grid of several fields.
-The aim is to stitch the field of particular wells together so that cell in the border area can be mapped completely.
-This might be helpful for cell segmentation where truncated cells would be excluded otherwise.
+The aim is to stitch the field of particular wells together so that cells in the border area can be mapped completely.
+This might be helpful for cell segmentation where truncated cells would be excluded otherwise. Another advantage is that
+cellular networks across fields can be detected.
+if-stitch works with images that are overlapping, best around 15-30%.
 
 ## How it works
 
 <p align="center">
     <img src="./img/image_stitching_opencv_pipeline.png" alt="OpenCV Stitching pipeline" width="600" height="401">
 </p>
+Pipeline for Panorama Stitching in OpenCV. Mosaic Stitching works similar.
 
-OpenCV is a library of programming functions for computer vision with a lot of useful implementations for image stitching.
+**OpenCV** is a library of programming functions for computer vision with a lot of useful implementations for image stitching.
 
 * First, images are **resized** for faster processing.
 * **OpenCV's SIFT** has been used to detect **features** and **descriptors** in the images.
@@ -42,7 +45,6 @@ where r is a letter between A and H and cc a digit between 1 and 12.
 * ``--channels``, `-ch`: A list or tuple of channel names that will be stitched individually. 
 Default is ('TexasRed', 'DAPI', 'FITC', 'Cy3', 'Cy5').
 * ``--mainchannel``, `-m`: Channel with the most features used to find homography. Default is 'TexasRed'.
-* ``--color``, `-col`: Color mode of images. Default is "grayscale".
 
 ## Requirements
 
@@ -53,8 +55,11 @@ Default is ('TexasRed', 'DAPI', 'FITC', 'Cy3', 'Cy5').
 
 ## Notes
 
-* Since illumination of images is typically inhomogeneous, illumination correction is advisable before stitching.
+* Since illumination of images is typically inhomogeneous, **illumination correction** is advisable before stitching.
 This will also improve keypoint matching. The stitched DAPI image shows an example without illumination correction.
+* Often not all parts of a field are in focus, which may result in two overlapping field, where the overlapping parts
+have different image depths. Thus, keypoints and descriptors can be different even though the region of interest is the same.
+**Focus stacking** for example could help out here.
 
 ## References
 

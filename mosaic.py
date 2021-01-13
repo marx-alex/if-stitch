@@ -8,6 +8,7 @@ class Stitcher:
         self.cols = grid[1]
         self.rows = grid[0]
         self.main_channel = main_channel
+        self.redsize = (400, 400)
 
     def mosaic(self, well, ix):
         """
@@ -23,7 +24,7 @@ class Stitcher:
         print("[INFO] Begin stitching well {}".format(ix + 1))
 
         # create list of images in main channel with reduced size
-        red = [cv2.resize(image, dsize=(400, 400)) for image in well[self.main_channel]]
+        red = [cv2.resize(image, dsize=self.redsize) for image in well[self.main_channel]]
 
         # calculate list of homographies from images in reduced size
         src = well[self.main_channel][0].shape
@@ -31,51 +32,74 @@ class Stitcher:
         scale = (src[0]/dst[0], src[1]/dst[1])
         homographies = self.homography_list(red, scale)
 
-        # if no keypoints were detected at any position homography_list
-        # return None
-        if homographies is None:
-            print("[ERROR] Well {} can not be stitched!".format(ix))
-            return None
-
         # iterate over all channels and apply stitching with predefined homography matrices
         stitched = {}
 
         for channel in well.keys():
+            # if no keypoints were detected at any position homography_list
+            # return None
+            if homographies is None:
+                print("[ERROR] Well {} in channel {} can not be stitched!".format(ix, channel))
+                stitched[channel] = None
+            # else apply homography to images
+            else:
 
-            # initialize row and column
-            row = 1
-            col = 1
+                # initialize row and column
+                row = 1
+                col = 1
+                # initialize homography index
+                hom = 0
+                # store stitched rows in lis
+                stitched_rows = []
 
-            # initialize homography index
-            hom = 0
+                for i, image in enumerate(well[channel]):
 
-            for i, image in enumerate(well[channel]):
+                    if col == 1:
+                        # start with the first image
+                        print("[INFO] Stitching {} at position: row {} and column {}".format(channel, row, col))
+                        result = image
 
-                if i == 0:
-                    # create an empty background and insert the first
-                    # image in the top left corner
-                    print("[INFO] Stitching {} at position: row {} and column {}".format(channel, row, col))
-                    b_shape = image.shape[0] * self.rows, image.shape[1] * self.cols
-                    result = np.zeros(b_shape, dtype=np.uint8)
-                    result[:image.shape[0], :image.shape[1]] = image
+                    else:
+                        # give information about status
+                        print("[INFO] Stitching {} at position: row {} and column {}".format(channel, row, col))
 
-                else:
-                    # give information about status
-                    print("[INFO] Stitching {} at position: row {} and column {}".format(channel, row, col))
+                        # stitch image to the preceding one
+                        result = self.stitch((result, image), M=homographies[hom], pos=(row, col))
+                        hom = hom + 1
 
-                    # stitch image to the background
-                    result = self.stitch((result, image), M=homographies[hom])
-                    hom = hom + 1
+                    # append stitched_rows by panorama of one row
+                    if col == self.cols:
+                        stitched_rows.append(result)
 
-                # update row and col
-                if col < 5:
-                    col = col + 1
-                else:
-                    col = 1
-                    row = row + 1
+                    # update row and col
+                    if col < self.cols:
+                        col = col + 1
+                    else:
+                        col = 1
+                        row = row + 1
 
-            # crop the stitched image
-            stitched[channel] = self.crop_image(result)
+                # initialize rows
+                row = 1
+
+                # iterate over panorama images of rows
+                for panorama in stitched_rows:
+
+                    if row == 1:
+                        # put the panorama on a black background and move it a bit from the corner
+                        result = np.zeros((int(panorama.shape[0] * 1.5), int(panorama.shape[1] * 1.5)), dtype=np.uint8)
+                        start = (int(panorama.shape[0] / 4), int(panorama.shape[1] / 4))
+                        result[start[0]:start[0] + panorama.shape[0], start[1]:start[1] + panorama.shape[1]] = panorama
+
+                    else:
+                        # stitch image to the background
+                        result = self.stitch((result, panorama), M=homographies[hom], pos=(row, 0))
+                        hom = hom + 1
+
+                    if row == self.rows:
+                        # store the stitched well in stitched
+                        stitched[channel] = self.crop_image(result)
+                    else:
+                        row = row + 1
 
         print("[INFO] Done stitching well {}".format(ix + 1))
         return stitched
@@ -98,38 +122,76 @@ class Stitcher:
         row = 1
         col = 1
 
+        # store stitched rows in list
+        stitched_rows = []
+
         for i, image in enumerate(images):
 
-            if i == 0:
-                # create an empty background and insert the first
-                # image in the top left corner
-                b_shape = image.shape[0] * self.rows, image.shape[1] * self.cols
-                result = np.zeros(b_shape, dtype=np.uint8)
-                result[:image.shape[0], :image.shape[1]] = image
+            if col == 1:
+                # start with the first image
+                result = image
 
             else:
                 # find homography for current position
-                M = self.get_homography([result, image])
-                # give information about status
+                M = self.get_homography([result, image], pos=(row, col))
+                # return None if there are not enough keypoints and give info
                 if M is None:
                     print("[INFO] No keypoints detected at position: row {} and column {}".format(row, col))
                     return None
                 else:
-                    print("[INFO] Keypoints detected at position row: {} and column {}".format(row, col))
+                    # give info about current status
+                    print("[INFO] Keypoints detected at position: row {} and column {}".format(row, col))
 
                 # stitch image to the background
-                result = self.stitch((result, image), M=M)
+                result = self.stitch((result, image), M=M, pos=(row, col))
 
                 # transform homography matrix and add it to list
                 M = (M[0], self.transform_homography(M[1], image.shape, (int(image.shape[0] * scale[0]), int(image.shape[1] * scale[1]))), M[2])
                 homographies.append(M)
 
+            if col == self.cols:
+                # append stitched_rows by panorama of one row
+                stitched_rows.append(result)
+
             # update row and col
-            if col < 5:
+            if col < self.cols:
                 col = col + 1
             else:
                 col = 1
                 row = row + 1
+
+        # initialize rows
+        row = 1
+
+        # iterate over all panorama images of the rows
+        for panorama in stitched_rows:
+
+            if row == 1:
+                # put the panorama on a black background and move it a bit from the corner
+                result = np.zeros((int(panorama.shape[0] * 1.5), int(panorama.shape[1] * 1.5)), dtype=np.uint8)
+                start = (int(panorama.shape[0] / 4), int(panorama.shape[1] / 4))
+                result[start[0]:start[0] + panorama.shape[0], start[1]:start[1] + panorama.shape[1]] = panorama
+
+            else:
+                # stitch image to the background
+                M = self.get_homography([result, panorama], pos=(row, 0))
+                # return None if there are not enough keypoints in panorama and give info
+                if M is None:
+                    print("[INFO] No keypoints detected at position: row {}".format(row))
+                    return None
+                # give info about status
+                else:
+                    print("[INFO] Keypoints detected at position: row {}".format(row))
+
+                # stitch row to the row above
+                result = self.stitch((result, panorama), M=M, pos=(row, 0))
+
+                # transform homography matrix and add it to list
+                M = (M[0], self.transform_homography(M[1], panorama.shape, (int(panorama.shape[0] * scale[0]), int(panorama.shape[1] * scale[1]))), M[2])
+                homographies.append(M)
+
+            # update row
+            row = row + 1
 
         return homographies
 
@@ -138,8 +200,8 @@ class Stitcher:
         Takes the homography matrix of a downsized image and transforms ist
         so that it can be applied to the image in original size
         :param H: 3 x 3 homography matrix
-        :param src_shape: shape of downsized image
-        :param dst_shape: shape of original image
+        :param src_shape: tuple, shape of downsized image
+        :param dst_shape: tuple, shape of original image
         :return: 3 x 3 matrix
         '''
 
@@ -165,7 +227,7 @@ class Stitcher:
 
         return H_trans
 
-    def stitch(self, images, M):
+    def stitch(self, images, M, pos):
         """
         Takes to images, stitches them together and return the stitched image
         :param images: list of two images
@@ -179,8 +241,13 @@ class Stitcher:
         # unpack homography information
         (matches, H, status) = M
 
-        # the size of the result equals size of imageA
-        dsize = imageA.shape
+        # size of the results depends on weather rows or columns are stitched
+        row, col = pos
+        if col == 0:
+            # rows are stitched together
+            dsize = (imageA.shape[1], imageA.shape[0] + imageB.shape[0])
+        else:
+            dsize = (imageA.shape[1] + imageB.shape[1], imageA.shape[0])
 
         # create mask for imageB for warping
         imageB_mask = np.zeros(imageB.shape)
@@ -193,18 +260,16 @@ class Stitcher:
         result_mask = cv2.bitwise_not(np.uint8(result_mask))
 
         # delete the part of imageA where we want to add imageB
-        masked_image = cv2.bitwise_and(np.uint8(imageA), result_mask)
+        background = np.zeros(result_mask.shape, dtype=np.uint8)
+        background[:imageA.shape[0],:imageA.shape[1]] = imageA
+        masked_image = cv2.bitwise_and(background, result_mask) #np.uint8(imageA)
 
         # add imageB to imageA at the correct position
         result = cv2.bitwise_or(np.uint8(result), masked_image)
 
-        # cv2.imshow("test", result)
-        # cv2.waitKey(0)
-
-        # return the stitched image
         return result
 
-    def get_homography(self, images, ratio=0.7, reprojThresh=7.0, color="grayscale"):
+    def get_homography(self, images, pos=None, ratio=0.7, reprojThresh=7.0):
         """
         Takes two small sized images in main channel of one well and
         returns a tuple with matches, homography matrix and status
@@ -215,8 +280,11 @@ class Stitcher:
         # unpack the images, then detect keypoints and extract
         # local invariant descriptors from them
         (imageA, imageB) = images
-        (kpsA, featuresA) = self.detectAndDescribe(imageA, color=color)
-        (kpsB, featuresB) = self.detectAndDescribe(imageB, color=color)
+
+        # detect keypoints
+        row, col = pos
+        (kpsA, featuresA) = self.detectAndDescribe(imageA)
+        (kpsB, featuresB) = self.detectAndDescribe(imageB)
 
         # match features between the two images
         M = self.matchKeypoints(kpsA, kpsB, featuresA, featuresB, ratio, reprojThresh)
@@ -226,28 +294,67 @@ class Stitcher:
         if M is None:
             return None
 
-        return M
+        # change homography matrix so that the warped
+        # imageB will have the same dimensions as before
+        H = self.map_homography(M[1], imageB.shape, pos)
 
-    def detectAndDescribe(self, image, color):
+        return M[0], H, M[2]
+
+    def map_homography(self, H, dsize, pos):
+        """
+        Takes a 3x3 homography matrix and changes it so that
+        the warped image will be a paralellogram
+        :param H: 3x3 numpy array, homography matrix
+        :param dsize: tuple, size of the image to warp
+        :param pos: tuple, row and column
+        :return: 3x3 numpy array, homography matrix
+        """
+        # get fix corners of image warped with H
+        # top left
+        point_tl = np.array([[0], [0], [1]])
+        tl = H.dot(point_tl).ravel()[:2]
+        # bottom left
+        point_bl = np.array([[0], [dsize[0]], [1]])
+        bl = H.dot(point_bl).ravel()[:2]
+
+        # get source corners of image
+        src = np.array([[0, 0],
+                        [dsize[1], 0],
+                        [0, dsize[0]],
+                        [dsize[1], dsize[0]]], dtype=np.float64)
+
+        # extract position
+        row, col = pos
+        # get desired destination corners depending on position
+        if col != 0:
+            # if images are stitched in rows as panoramas only the left points are fixed
+            dist = np.linalg.norm(tl - bl)
+
+            dst = np.array([[tl[0], tl[1]],
+                            [tl[0] + dist, tl[1]],
+                            [bl[0], bl[1]],
+                            [bl[0] + dist, bl[1]]], dtype=np.float64)
+
+            # calculate new homography
+            H, _ = cv2.findHomography(src, dst)
+
+            return H
+        # do nothing if rows are stitched
+        return H
+
+    def detectAndDescribe(self, image, mask=None):
         """
         Detects keypoints and corresponding descriptors from image
         :param image: numpy array
-        :param color: string
         :return: keypoints and descriptors (features)
         """
-        if color == "RGB":
-            # convert the image to grayscale
-            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        elif color == "BGR":
-            # convert image to grayscale
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else:
-            # image is already grayscale
-            gray = image
 
         # detect and extract features from the image
         descriptor = cv2.SIFT_create()
-        (kps, features) = descriptor.detectAndCompute(gray, None)
+        if mask is not None:
+            (kps, features) = descriptor.detectAndCompute(image, mask=mask)
+        else:
+            (kps, features) = descriptor.detectAndCompute(image, None)
 
         # return a tuple of keypoints and features
         return kps, features
@@ -294,8 +401,8 @@ class Stitcher:
                 ptsB[i, :] = kpsB[m.trainIdx].pt
 
             # compute the homography between the two sets of points
-            (H, status) = cv2.findHomography(ptsB, ptsA, cv2.RANSAC,
-                                             reprojThresh)
+            (H, status) = cv2.findHomography(ptsB, ptsA, cv2.RANSAC, reprojThresh)
+
             # return the matches along with the homography matrix
             # and status of each matched point
             return matches, H, status
@@ -313,12 +420,14 @@ class Stitcher:
         mask0, mask1 = mask.any(0), mask.any(1)
         col_start, col_end = mask0.argmax(), n - mask0[::-1].argmax() - 1
         row_start, row_end = mask1.argmax(), m - mask1[::-1].argmax() - 1
-        return image[:row_end, 0:col_end]
+
+        return image[row_start:row_end, col_start:col_end]
 
     def equal_size(self, images):
         '''
         Takes a list of images and resizes them so that they all have the
         same dimensions
+        This function is currently not used
         :param images: list of images
         :return: list of images with same dimensions
         '''
