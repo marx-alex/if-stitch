@@ -12,7 +12,8 @@ if-stitch works with images that are overlapping, best around 15-30%.
 <p align="center">
     <img src="./img/image_stitching_opencv_pipeline.png" alt="OpenCV Stitching pipeline" width="600" height="401">
 </p>
-Pipeline for Panorama Stitching in OpenCV. Mosaic Stitching works similar.
+<em>Pipeline for Panorama Stitching in OpenCV. Mosaic Stitching works similar.</em>
+<br/><br/>
 
 **OpenCV** is a library of programming functions for computer vision with a lot of useful implementations for image stitching.
 
