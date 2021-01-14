@@ -29,6 +29,7 @@ ap.add_argument('-ch', '--channels', type=list, default=channels, required=False
                 help="Channels to load")
 ap.add_argument("-m", "--mainchannel", type=str, required=False, default=main_channel,
                 help="Main channel, that should be used for keypoint detection")
+# parse arguments
 args = vars(ap.parse_args())
 
 # initialize imageLoader
@@ -46,7 +47,7 @@ def main(images=images, grid=grid, main_channel=args["mainchannel"]):
     # iterate over the wells in a directory
     # only one well at a time is loaded into memory
     for i, (well, channelDict) in enumerate(images.load_images()):
-        result = stitcher.mosaic(channelDict, ix=i)
+        result = stitcher(channelDict, ix=i)
 
         for channel in result.keys():
             if result[channel] is not None:
