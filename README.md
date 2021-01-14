@@ -33,6 +33,13 @@ TexasRed Stitched (and Corrected)             |  DAPI Stitched (without Correcti
 :-------------------------:|:-------------------------:
 ![TexasRed Stitched](./img/TexasRed_stitched.png)  |  ![DAPI Stitched](./img/DAPI_stitched.png)
 
+## Usage
+
+The working directory should be `your/path/if-stitch/`. Use in Terminal.
+```
+python if-stitch.py -i /path/to/input -o /path/to/output -gr 5 5
+```
+
 ## Arguments
 
 ### Required
