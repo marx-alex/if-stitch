@@ -34,7 +34,7 @@ class ImageLoader:
             for channel in self.channels:
 
                 # add channel to dictionary if found in file
-                ch = [cv2.imread(imagePath, 0) for imagePath in images if str(channel) in imagePath]
+                ch = [cv2.imread(imagePath, cv2.IMREAD_ANYDEPTH) for imagePath in images if str(channel) in imagePath]
 
                 if len(ch) >= 1:
                     channelDict[channel] = ch

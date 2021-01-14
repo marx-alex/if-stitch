@@ -5,7 +5,8 @@ Typically, many images are taken from 96- or 384-well microplates. One well can 
 The aim is to stitch the field of particular wells together so that cells in the border area can be mapped completely.
 This might be helpful for cell segmentation where truncated cells would be excluded otherwise. Another advantage is that
 cellular networks across fields can be detected.
-if-stitch works with images that are overlapping, best around 15-30%.
+if-stitch works with images that are overlapping, best around 15-30%. The images should be sorted from left to right
+and top to bottom.
 
 ## How it works
 
@@ -24,6 +25,7 @@ if-stitch works with images that are overlapping, best around 15-30%.
 This is done by **warpPerspective**.
 * The calculated homography matrices for each field are changed to that they can be applied to the images in original size.
 * Images are then warped in every channel based on homography matrices.
+* In general the images are first stitched to panoramas of rows. Then the panoramas are stitched together.
 
 ## Example
 
@@ -41,24 +43,23 @@ TexasRed Stitched (and Corrected)             |  DAPI Stitched (without Correcti
 
 ### Optional
 
-* ``--string``, `-s`: String by which name of well can be identified from filename. Default is "{r} - {cc}" 
+* `--string`, `-s`: String by which name of well can be identified from filename. Default is "{r} - {cc}" 
 where r is a letter between A and H and cc a digit between 1 and 12.
-* ``--channels``, `-ch`: A list or tuple of channel names that will be stitched individually. 
+* `--channels`, `-ch`: A list or tuple of channel names that will be stitched individually. 
 Default is ('TexasRed', 'DAPI', 'FITC', 'Cy3', 'Cy5').
-* ``--mainchannel``, `-m`: Channel with the most features used to find homography. Default is 'TexasRed'.
+* `--mainchannel`, `-m`: Channel with the most features used to find homography. Default is 'TexasRed'.
 
 ## Requirements
 
-* opencv-contrib-python is needed for **SIFT**: ``pip install opencv-contrib-python``
-* Numpy: ``pip install numpy``
-* Argparse: ``pip install argparse``
-* Imutils: ``pip install imutils``
+* Recently **SIFT** became also available in the OpenCV main repo: `pip install opencv-python`
+* Numpy: `pip install numpy`
+* Imutils: `pip install imutils`
 
 ## Notes
 
 * Since illumination of images is typically inhomogeneous, **illumination correction** is advisable before stitching.
 This will also improve keypoint matching. The stitched DAPI image shows an example without illumination correction.
-* Often not all parts of a field are in focus, which may result in two overlapping field, where the overlapping parts
+* Often not all parts of a field are in focus, which may result in two overlapping fields, where the overlapping parts
 have different image depths. Thus, keypoints and descriptors can be different even though the region of interest is the same.
 **Focus stacking** for example could help out here.
 

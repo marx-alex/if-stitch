@@ -12,9 +12,9 @@ class Stitcher:
 
     def mosaic(self, well, ix):
         """
-        Takes all images of one well. Reduces the size of images in main channel
+        Takes all images of one well. Reduces the size and depth of images in main channel
         and calculates all homography matrices for every position.
-        Then applies homographies to images in normal resolution in all channels.
+        Then applies homographies to images in normal resolution and depth in all channels.
         :param well: dictionary of images for one well in every channel
         :param i: index of well
         :return: tuple with stitched images for every channel
@@ -23,8 +23,16 @@ class Stitcher:
         # start stitching
         print("[INFO] Begin stitching well {}".format(ix + 1))
 
-        # create list of images in main channel with reduced size
-        red = [cv2.resize(image, dsize=self.redsize) for image in well[self.main_channel]]
+        # test if images contain unsigned integers
+        if not np.issubdtype(well[self.main_channel][0].dtype, np.integer):
+            raise Exception("[ERROR] Images do not contain integers")
+        if not np.issubdtype(well[self.main_channel][0].dtype, np.unsignedinteger):
+            raise Exception("[ERROR] Images do not contain unsigned integers")
+
+        # get maximal value of used image depth
+        max_value = float(np.iinfo(well[self.main_channel][0].dtype).max)
+        # create list of images in main channel with reduced size and in uint8
+        red = [cv2.convertScaleAbs(cv2.resize(image, dsize=self.redsize), alpha=(255.0/max_value)) for image in well[self.main_channel]]
 
         # calculate list of homographies from images in reduced size
         src = well[self.main_channel][0].shape
@@ -85,12 +93,14 @@ class Stitcher:
                 for panorama in stitched_rows:
 
                     if row == 1:
+                        print("[INFO] Stitching {} at position: row {}".format(channel, row))
                         # put the panorama on a black background and move it a bit from the corner
-                        result = np.zeros((int(panorama.shape[0] * 1.5), int(panorama.shape[1] * 1.5)), dtype=np.uint8)
+                        result = np.zeros((int(panorama.shape[0] * 1.5), int(panorama.shape[1] * 1.5)), dtype=panorama.dtype)
                         start = (int(panorama.shape[0] / 4), int(panorama.shape[1] / 4))
                         result[start[0]:start[0] + panorama.shape[0], start[1]:start[1] + panorama.shape[1]] = panorama
 
                     else:
+                        print("[INFO] Stitching {} at position: row {}".format(channel, row))
                         # stitch image to the background
                         result = self.stitch((result, panorama), M=homographies[hom], pos=(row, 0))
                         hom = hom + 1
@@ -168,7 +178,7 @@ class Stitcher:
 
             if row == 1:
                 # put the panorama on a black background and move it a bit from the corner
-                result = np.zeros((int(panorama.shape[0] * 1.5), int(panorama.shape[1] * 1.5)), dtype=np.uint8)
+                result = np.zeros((int(panorama.shape[0] * 1.5), int(panorama.shape[1] * 1.5)), dtype=panorama.dtype)
                 start = (int(panorama.shape[0] / 4), int(panorama.shape[1] / 4))
                 result[start[0]:start[0] + panorama.shape[0], start[1]:start[1] + panorama.shape[1]] = panorama
 
@@ -250,22 +260,22 @@ class Stitcher:
             dsize = (imageA.shape[1] + imageB.shape[1], imageA.shape[0])
 
         # create mask for imageB for warping
-        imageB_mask = np.zeros(imageB.shape)
-        imageB_mask[:] = 255
+        imageB_mask = np.zeros(imageB.shape, dtype=imageB.dtype)
+        imageB_mask[:] = np.iinfo(imageB.dtype).max
 
         # warp imageB and the mask using the homography matrix
         result = cv2.warpPerspective(imageB, H, dsize, flags=cv2.INTER_LINEAR)
         result_mask = cv2.warpPerspective(imageB_mask, H, dsize)
         # invert the warped mask
-        result_mask = cv2.bitwise_not(np.uint8(result_mask))
+        result_mask = cv2.bitwise_not(result_mask)
 
         # delete the part of imageA where we want to add imageB
-        background = np.zeros(result_mask.shape, dtype=np.uint8)
+        background = np.zeros(result_mask.shape, dtype=imageB.dtype)
         background[:imageA.shape[0],:imageA.shape[1]] = imageA
-        masked_image = cv2.bitwise_and(background, result_mask) #np.uint8(imageA)
+        masked_image = cv2.bitwise_and(background, result_mask)
 
         # add imageB to imageA at the correct position
-        result = cv2.bitwise_or(np.uint8(result), masked_image)
+        result = cv2.bitwise_or(result, masked_image)
 
         return result
 
