@@ -6,8 +6,6 @@ import argparse
 from imutils import paths
 from itertools import groupby
 import re
-import tkinter as tk
-from tkinter import filedialog
 
 
 class Stitcher:
@@ -17,7 +15,7 @@ class Stitcher:
         self.main_channel = main_channel
         self.redsize = (400, 400)
 
-    def __call__(self, well, ix):
+    def __call__(self, well, ix, ratio, reprojThresh):
         """
         Takes all images of one well. Reduces the size and depth of images in main channel
         and calculates all homography matrices for every position.
@@ -46,7 +44,7 @@ class Stitcher:
         src = well[self.main_channel][0].shape
         dst = red[0].shape
         scale = (src[0] / dst[0], src[1] / dst[1])
-        homographies = self.mosaic(red, scale=scale)
+        homographies = self.mosaic(red, scale=scale, ratio=ratio, reprojThresh=reprojThresh)
 
         # iterate over all channels and apply stitching with predefined homography matrices
         stitched = {}
@@ -58,17 +56,19 @@ class Stitcher:
                 stitched[channel] = None
             # else apply homography to images
             else:
-                stitched[channel] = self.mosaic(well[channel], channel=channel, hom=homographies)
+                stitched[channel] = self.mosaic(well[channel], channel=channel, hom=homographies, ratio=ratio, reprojThresh=reprojThresh)
 
         # start stitching
         print("[INFO] Done stitching well {}".format(ix + 1))
         return stitched
 
-    def mosaic(self, images, scale=None, channel=None, hom=False):
+    def mosaic(self, images, ratio, reprojThresh, scale=None, channel=None, hom=False):
         """
         Stitches images of a well, first as row panoramas then the rows to a whole image.
         If hom is given, applies homographies to images and returns the stitched image.
         If no hom is given, calculates homographies at every position and return them as list.
+        :type ratio: integer
+        :param reprojThresh: integer
         :param images: list of numpy arrays
         :param scale: tuple of two float numbers
         :param channel: string
@@ -107,7 +107,7 @@ class Stitcher:
 
                 else:
                     # find homography for current position
-                    M = self.get_homography([result, image], pos=(row, col))
+                    M = self.get_homography([result, image], pos=(row, col), ratio=ratio, reprojThresh=reprojThresh)
                     # return None if there are not enough keypoints and give info
                     if M is None:
                         print("[INFO] No keypoints detected at position: row {} and column {}".format(row, col))
@@ -158,7 +158,7 @@ class Stitcher:
 
                 else:
                     # stitch image to the background
-                    M = self.get_homography([result, panorama], pos=(row, 0))
+                    M = self.get_homography([result, panorama], pos=(row, 0), ratio=ratio, reprojThresh=reprojThresh)
                     # return None if there are not enough keypoints in panorama and give info
                     if M is None:
                         print("[INFO] No keypoints detected at position: row {}".format(row))
@@ -260,7 +260,7 @@ class Stitcher:
 
         return result
 
-    def get_homography(self, images, pos=None, ratio=0.6, reprojThresh=7.0):
+    def get_homography(self, images, ratio, reprojThresh, pos=None):
         """
         Takes two small sized images in main channel of one well and
         returns a tuple with matches, homography matrix and status
@@ -278,7 +278,7 @@ class Stitcher:
         (kpsB, featuresB) = self.detectAndDescribe(imageB)
 
         # match features between the two images
-        M = self.matchKeypoints(kpsA, kpsB, featuresA, featuresB, ratio, reprojThresh)
+        M = self.matchKeypoints(kpsA, kpsB, featuresA, featuresB, ratio=ratio, reprojThresh=reprojThresh)
 
         # if the match is None, then there aren't enough matched
         # keypoints to create a stitch
@@ -479,6 +479,8 @@ def main():
     channels = "TexasRed", "DAPI", "FITC", "Cy3", "Cy5"
     main_channel = "TexasRed"
     string = "{r} - {cc}"
+    ratio= 0.6
+    reprojThresh = 7.0
 
     ap = argparse.ArgumentParser()
     # required arguments
@@ -496,6 +498,10 @@ def main():
                     help="Channels to load")
     ap.add_argument("-m", "--mainchannel", type=str, required=False, default=main_channel,
                     help="Main channel, that should be used for keypoint detection")
+    ap.add_argument('-r', '--ratio', type=int, required=False, default=ratio,
+                    help="Lowe's ratio to filter matches")
+    ap.add_argument('-t', '--thresh', type=int, required=False, default=reprojThresh,
+                    help="Reprojection threshold RANSAC algorithm")
     # parse arguments
     args = vars(ap.parse_args())
 
@@ -507,12 +513,12 @@ def main():
     if len(grid) > 2:
         raise Exception("[Argument Error] Two integers expected for grid argument: rows columns")
 
-    stitcher = Stitcher(grid=grid, main_channel=main_channel)
+    stitcher = Stitcher(grid=grid, main_channel=args["mainchannel"])
 
     # iterate over the wells in a directory
     # only one well at a time is loaded into memory
     for i, (well, channelDict) in enumerate(images.load_images()):
-        result = stitcher(channelDict, ix=i)
+        result = stitcher(channelDict, ix=i, ratio=args["ratio"], reprojThresh=args["thresh"])
 
         for channel in result.keys():
             if result[channel] is not None:

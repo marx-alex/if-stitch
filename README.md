@@ -55,10 +55,12 @@ where r is a letter between A and H and cc a digit between 1 and 12.
 * `--channels`, `-ch`: A list or tuple of channel names that will be stitched individually. 
 Default is ('TexasRed', 'DAPI', 'FITC', 'Cy3', 'Cy5').
 * `--mainchannel`, `-m`: Channel with the most features used to find homography. Default is 'TexasRed'.
+* `--ratio`, `-r`: Ratio for Lowe's test which is applied to filter matches.
+* `--thresh`, `-t`: Reprojection Threshold to find the best matches for the homography matrix.
 
 ## Requirements
 
-* Recently **SIFT** became also available in the OpenCV main repo: `pip install opencv-python`
+* OpenCV: `pip install opencv-contrib-python`
 * Numpy: `pip install numpy`
 * Imutils: `pip install imutils`
 
@@ -69,6 +71,10 @@ This will also improve keypoint matching. The stitched DAPI image shows an examp
 * Often not all parts of a field are in focus, which may result in two overlapping fields, where the overlapping parts
 have different image depths. Thus, keypoints and descriptors can be different even though the region of interest is the same.
 **Focus stacking** for example could help out here.
+
+## Troubleshooting
+* Depending on the images and features sometimes the result can be worse than expected. If the stitched images looks like
+two field are not matched correctly, try to change ratio or the reprojection Threshhold.
 
 ## References
 
