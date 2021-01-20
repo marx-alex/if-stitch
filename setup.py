@@ -16,6 +16,6 @@ setup(
     'Programming Language :: Python :: 3.8'],
     keywords='medicine microscopy stitching histology cells biology mosaic',
     install_requires=['numpy>=1.19.3',
-                      'opencv-python>=4.5.1.48',
+                      'opencv-contrib-python>=4.4.0.46',
                       'imutils>=0.5.3']
 )
