@@ -73,8 +73,8 @@ have different image depths. Thus, keypoints and descriptors can be different ev
 **Focus stacking** for example could help out here.
 
 ## Troubleshooting
-* Depending on the images and features sometimes the result can be worse than expected. If the stitched images looks like
-two field are not matched correctly, try to change ratio or the reprojection Threshhold.
+* Depending on the images and features sometimes the result might be worse than expected. If the stitched image looks like
+two fields are not matched correctly, try to change ratio or the reprojection Threshhold.
 
 ## References
 
